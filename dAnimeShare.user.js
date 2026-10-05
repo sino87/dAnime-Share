@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         dアニメ共有ボタン
 // @namespace    https://greasyfork.org/ja/users/1492018-sino087
-// @version      1.1.0
-// @description  dアニメストアで動画再生終了後にX(Twitter)への共有ボタンと共有内容をコピーするボタンを表示する
+// @version      1.2.0
+// @description  dアニメストアでエピソードごとに共有ボタンを表示する
 // @author       sino
 // @homepage     https://github.com/tatsuya087
 // @license      MIT
@@ -37,9 +37,24 @@
         .danime-share-container.fadein { opacity: 1; }
         .danime-share-container.hide { opacity: 0; visibility: hidden; transition: none !important; }
 
-        /* エピソードページ */
         div.itemModule.list {
             position: relative !important;
+        }
+        div.itemModule.list[data-danime-share-processed] > section > a.clearfix {
+            box-sizing: border-box;
+            padding-right: 54px;
+        }
+        div.itemModule.list[data-danime-share-processed] > section > a.clearfix > .thumbnailContainer {
+            flex-shrink: 0;
+        }
+        div.itemModule.list[data-danime-share-processed] > section > a.clearfix > .textContainer {
+            min-width: 0;
+        }
+        .itemWrapper div.itemModule.list.danime-share-mypage .itemModuleIn .textContainerIn {
+            padding-right: 64px;
+        }
+        .itemWrapper div.itemModule.list.danime-share-mypage .itemModuleIn + .detail {
+            right: 64px;
         }
         .danime-share-inline-container {
             position: absolute;
@@ -175,7 +190,7 @@
     const currentUrl = window.location.href;
     if (currentUrl.includes('sc_d_pc')) {
         runPlayerPageLogic();
-    } else if (currentUrl.includes('ci_pc')) {
+    } else if (currentUrl.includes('ci_pc') || currentUrl.includes('mp_viw_pc')) {
         runEpisodeListPageLogic();
     }
 
@@ -250,7 +265,9 @@
     }
 
     function runEpisodeListPageLogic() {
-        function getAnimeTitle() {
+        function getAnimeTitle(section) {
+            const cardTitle = section.querySelector('.textContainer h2');
+            if (cardTitle) return cardTitle.textContent.trim();
             const titleH1 = document.querySelector('div.titleWrap > h1');
             if (!titleH1) return '';
             const clone = titleH1.cloneNode(true);
@@ -261,7 +278,11 @@
 
         function processSection(section) {
             if (section.dataset.danimeShareProcessed) return;
+            if (!section.querySelector('a.clearfix[href], a.textContainer[href]')) return;
             section.dataset.danimeShareProcessed = 'true';
+            if (currentUrl.includes('mp_viw_pc')) {
+                section.classList.add('danime-share-mypage');
+            }
 
             const container = document.createElement('div');
             container.className = 'danime-share-inline-container';
@@ -276,11 +297,11 @@
         }
 
         function handleListShare(section, type, triggerBtn = null) {
-            const animeTitle = getAnimeTitle();
+            const animeTitle = getAnimeTitle(section);
             const episode = section.querySelector('span.number')?.textContent.trim() || '';
-            const subtitle = section.querySelector('span.ui-clamp.webkit2LineClamp')?.textContent.trim() || '';
+            const subtitle = section.querySelector('span.episode, span.ui-clamp.webkit2LineClamp')?.textContent.trim() || '';
 
-            const link = section.querySelector('a.clearfix');
+            const link = section.querySelector('a.clearfix[href], a.textContainer[href]');
             let shareUrl = '';
 
             if (link) {
